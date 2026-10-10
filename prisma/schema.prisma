@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+model User {
+  id               String   @id @default(uuid())
+  employeeId       String   @unique
+  name             String
+  email            String   @unique
+  phone            String?
+  passwordHash     String
+  role             String   // "employee" | "reporting_person" | "hr" | "admin"
+
+
+
+  locationId        String?
+  location           Location? @relation(fields: [locationId], references: [id])
+
+  attendance         Attendance[]
+  leaveRequests       LeaveRequest[] @relation("EmployeeLeaves")
+  approvals            LeaveRequest[] @relation("ApproverLeaves")
+
+  createdAt          DateTime @default(now())
+}
+
+model Location {
+  id           String   @id @default(uuid())
+  name         String
+  address      String?
+  latitude     Float
+  longitude    Float
+  radiusMeters Int      @default(250)
+  users        User[]
+  createdAt    DateTime @default(now())
+}
+
+model Attendance {
+  id                 String   @id @default(uuid())
+  employeeId         String
+  employee           User     @relation(fields: [employeeId], references: [id])
+  date               DateTime
+  punchInTime        DateTime?
+  punchOutTime        DateTime?
+  latitude           Float
+  longitude          Float
+  distanceMeters     Float
+  locationVerified   Boolean
+  status             String   // "present" | "half_day" | "absent"
+  workedHours        Float?
+  createdAt          DateTime @default(now())
+
+  @@unique([employeeId, date])
+}
+
+model LeaveRequest {
+  id                 String   @id @default(uuid())
+  employeeId         String
+  employee           User     @relation("EmployeeLeaves", fields: [employeeId], references: [id])
+  approverId         String?
+  approver           User?    @relation("ApproverLeaves", fields: [approverId], references: [id])
+  leaveType          String
+  startDate          DateTime
+  endDate            DateTime
+  numberOfDays       Float
+  reason             String?
+  dayPortion         String   @default("full_day") // "full_day" | "first_half" | "second_half"
+  status             String   @default("pending") // "pending" | "approved" | "rejected"
+  createdAt          DateTime @default(now())
+}
+
+model Holiday {
+  id           String   @id @default(uuid())
+  name         String
+  date         DateTime
+  holidayType  String?
+  description  String?
+}

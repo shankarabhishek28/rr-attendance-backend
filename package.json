@@ -1,0 +1,18 @@
+{
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "prisma": "^7.10.0"
+  },
+  "scripts": {
+    "postinstall": "prisma skills sync || exit 0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1"
+  }
+}
