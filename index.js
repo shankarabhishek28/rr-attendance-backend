@@ -309,9 +309,13 @@ app.post("/api/admin/employees", requireAuth, async (req, res) => {
         }, 0);
         const employeeId = `R&R${String(lastNum + 1).padStart(3, "0")}`;
         const passwordHash = await bcrypt.hash(password, 10);
-
+        let assignedLocationId = locationId || null;
+        if (!assignedLocationId) {
+            const office = await prisma.location.findFirst();
+            assignedLocationId = office ? office.id : null;
+        }
         const employee = await prisma.user.create({
-            data: { employeeId, name, email, passwordHash, role, locationId: locationId || null },
+            data: { employeeId, name, email, passwordHash, role, locationId: assignedLocationId },
         });
 
         res.json({
