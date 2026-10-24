@@ -1,4 +1,5 @@
 require("dotenv/config");
+const cron = require("node-cron");
 const { requireAuth } = require("./middleware/auth");
 const { getDistanceInMeters } = require("./utils/distance");
 
@@ -182,7 +183,7 @@ app.post("/api/attendance/punch-out", requireAuth, async (req, res) => {
     const workedHours = parseFloat((workedMs / 3600000).toFixed(2));
 
     let status;
-    if (workedHours >= 9) {
+    if (workedHours >= 8.5) {
         status = "present";
     } else if (workedHours >= 4.5) {
         status = "half_day";
@@ -283,6 +284,48 @@ app.get("/api/users/me", requireAuth, async (req, res) => {
     res.json(user);
 });
 
+
+// --- Midnight Cron: Auto-mark absent for employees who forgot to punch out ---
+// Runs every day at 11:59 PM (server local time)
+cron.schedule("59 23 * * *", async () => {
+    console.log("[Cron] Running midnight punch-out check...");
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Find all records for today with a punch-in but no punch-out
+        const unpunched = await prisma.attendance.findMany({
+            where: {
+                date: today,
+                punchInTime: { not: null },
+                punchOutTime: null,
+            },
+            select: { id: true },
+        });
+
+        if (unpunched.length === 0) {
+            console.log("[Cron] No unpunched records found.");
+            return;
+        }
+
+        const ids = unpunched.map((r) => r.id);
+
+        // Mark them as absent with 0 worked hours
+        const result = await prisma.attendance.updateMany({
+            where: { id: { in: ids } },
+            data: {
+                status: "absent",
+                workedHours: 0,
+                // punchOutTime is intentionally left null to distinguish
+                // from a real punch-out — admin can see these in the report
+            },
+        });
+
+        console.log(`[Cron] Marked ${result.count} record(s) as absent (missed punch-out).`);
+    } catch (err) {
+        console.error("[Cron] Error during midnight punch-out check:", err);
+    }
+});
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
